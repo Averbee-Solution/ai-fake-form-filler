@@ -43,6 +43,8 @@ let queue: Promise<void> = Promise.resolve();
 let pendingCount = 0;
 let isPaused = false;
 let isCapturing = false;
+// What the user still has to set up before transcribing; filled in by loadSettings.
+let setupMessage = "";
 
 // Claude has no audio input, so transcription uses an OpenAI-compatible provider: the active one if it is,
 // otherwise OpenRouter.
@@ -231,6 +233,10 @@ async function loadSettings(): Promise<boolean> {
   }`;
   modelInput.value = await getTranscriptionModel();
 
+  setupMessage =
+    provider === "custom"
+      ? "Set the API URL for your custom provider on the AI Fill settings page"
+      : `Add your ${AI_PROVIDERS[provider].label} API key in Settings`;
   return provider === "custom" ? !!baseUrl : !!apiKey;
 }
 
@@ -256,7 +262,7 @@ startButton.addEventListener("click", async () => {
   if (!(await loadSettings())) {
     settingsSection.open = true;
     apiKeyInput.focus();
-    setStatus("Add your OpenRouter API key in Settings first.", { error: true });
+    setStatus(`${setupMessage} first.`, { error: true });
     return;
   }
 
@@ -315,6 +321,6 @@ loadSettings().then((isReady) => {
   setState("off");
   if (!isReady) {
     settingsSection.open = true;
-    setStatus("Add your OpenRouter API key in Settings to start.");
+    setStatus(`${setupMessage} to start.`);
   }
 });

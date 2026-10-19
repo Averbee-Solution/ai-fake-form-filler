@@ -199,13 +199,28 @@ function withGroupLabel(element: HTMLElement, ownLabel: string): string {
   return groupLabel && groupLabel !== ownLabel ? `${groupLabel} › ${ownLabel}` : ownLabel;
 }
 
-function assignRef(element: Element, index: number): string {
+// Refs stay on the elements between scans, so new ones come from a counter rather than the scan position:
+// a position-based ref would collide with one given out by an earlier scan of a different container or of a
+// form that has changed since. The random prefix keeps refs unique if the content script is injected again.
+const REF_PREFIX = Math.random().toString(36).substring(2, 5);
+let nextRefNumber = 0;
+
+function assignRef(element: Element): string {
   let ref = element.getAttribute(REF_ATTRIBUTE);
   if (!ref) {
-    ref = `f${index}`;
+    ref = `${REF_PREFIX}${nextRefNumber}`;
+    nextRefNumber += 1;
     element.setAttribute(REF_ATTRIBUTE, ref);
   }
   return ref;
+}
+
+// Values of password fields never leave the page; the AI only learns whether one is already filled in.
+function getSafeCurrentValue(element: HTMLInputElement | HTMLTextAreaElement): string {
+  if (element instanceof HTMLInputElement && element.type === "password") {
+    return element.value ? "(filled in, hidden)" : "";
+  }
+  return element.value;
 }
 
 function getFillableElements(container: Document | HTMLElement): AiFillableElement[] {
@@ -240,12 +255,12 @@ export function ScanFormFields(container: Document | HTMLElement = document): IA
   const fields: IAiFieldDescriptor[] = [];
   const seenRadioGroups = new Set<string | Element>();
 
-  getFillableElements(container).forEach((element, index) => {
+  getFillableElements(container).forEach((element) => {
     if (fields.length >= MAX_FIELDS) {
       return;
     }
 
-    const ref = assignRef(element, index);
+    const ref = assignRef(element);
 
     if (element instanceof HTMLSelectElement) {
       fields.push({
@@ -270,7 +285,7 @@ export function ScanFormFields(container: Document | HTMLElement = document): IA
       seenRadioGroups.add(group);
 
       const radios = getAriaRadios(group);
-      radios.forEach((radio, radioIndex) => assignRef(radio, index * 1000 + radioIndex));
+      radios.forEach((radio) => assignRef(radio));
       const checked = radios.find((radio) => isAriaChecked(radio));
       fields.push({
         ref,
@@ -307,7 +322,7 @@ export function ScanFormFields(container: Document | HTMLElement = document): IA
             container.querySelectorAll<HTMLInputElement>(`input[type='radio'][name="${CSS.escape(element.name)}"]`)
           )
         : [element];
-      radios.forEach((radio, radioIndex) => assignRef(radio, index * 1000 + radioIndex));
+      radios.forEach((radio) => assignRef(radio));
 
       const checked = radios.find((radio) => radio.checked);
       fields.push({
@@ -329,7 +344,7 @@ export function ScanFormFields(container: Document | HTMLElement = document): IA
         label: isCheckbox ? withGroupLabel(element, getLabelText(element)) : getLabelText(element),
         name: element.name || element.id,
         placeholder: element.getAttribute("placeholder") || undefined,
-        currentValue: isCheckbox ? String((element as HTMLInputElement).checked) : element.value,
+        currentValue: isCheckbox ? String((element as HTMLInputElement).checked) : getSafeCurrentValue(element),
       });
       return;
     }
@@ -534,8 +549,10 @@ function findAriaRadio(element: HTMLElement, value: string): HTMLElement | undef
 }
 
 function findRadio(element: HTMLInputElement, value: string): HTMLInputElement | undefined {
+  // Look only in the radio's own form: another form on the page may use the same group name.
+  const scope: Document | HTMLFormElement = element.form || document;
   const radios = element.name
-    ? Array.from(document.querySelectorAll<HTMLInputElement>(`input[type='radio'][name="${CSS.escape(element.name)}"]`))
+    ? Array.from(scope.querySelectorAll<HTMLInputElement>(`input[type='radio'][name="${CSS.escape(element.name)}"]`))
     : [element];
 
   return radios.find((radio) => matchesOption({ value: radio.value, text: getLabelText(radio) }, value));

@@ -6,12 +6,10 @@ import {
   SaveAiFillSettings,
 } from "src/common/ai-fill-settings";
 import { ApplyAiFills, GetAiScanContainer, ScanFormFields } from "src/common/ai-form-scanner";
-import GetPageContent from "src/common/page-content";
+import GetPageContent, { MIN_SELECTION_CHARACTERS } from "src/common/page-content";
 import { AiProvider, IAiFillResult, IAiFillSettings } from "src/types";
 
 export type PanelMode = "fill" | "ask";
-
-const SELECTION_MIN_LENGTH = 20;
 
 const MODE_TEXT: Record<PanelMode, { placeholder: string; button: string; ready: string }> = {
   fill: {
@@ -182,7 +180,7 @@ class AiFillPanel {
 
   // With a mode, opens the panel in that mode (or switches to it); without one, opens or closes the panel.
   public toggle(mode?: PanelMode): void {
-    if (this.host && mode && mode !== this.mode) {
+    if (this.host && mode) {
       this.setMode(mode);
     } else if (this.host) {
       this.close();
@@ -494,7 +492,7 @@ class AiFillPanel {
   // Remembers text the user selects on the page (not inside the panel, whose selection is hidden in its shadow root).
   private captureSelection(): void {
     const selected = (window.getSelection()?.toString() || "").trim();
-    if (selected.length >= SELECTION_MIN_LENGTH) {
+    if (selected.length >= MIN_SELECTION_CHARACTERS) {
       this.pageSelection = selected;
       if (this.host) {
         this.renderScope();

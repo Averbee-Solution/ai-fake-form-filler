@@ -28,10 +28,6 @@ export default function CustomFieldsView(props: Props): React.JSX.Element {
 
   const dispatch = useDispatch<MyThunkDispatch>();
 
-  // Every edition can add unlimited fields, to the default list and to URL-specific profiles.
-  const allowAdd = true;
-  const allowEdit = true;
-
   function closeModal(): void {
     setModalIsOpen(false);
     setCustomField(null);
@@ -40,54 +36,45 @@ export default function CustomFieldsView(props: Props): React.JSX.Element {
   }
 
   function newCustomField(index: number): void {
-    if (allowEdit) {
-      setCustomFieldIndex(index);
-      setActionType("create");
-      setCustomField(null);
-      setModalIsOpen(true);
-    }
+    setCustomFieldIndex(index);
+    setActionType("create");
+    setCustomField(null);
+    setModalIsOpen(true);
   }
 
   function handleEdit(currentCustomField: ICustomField, index: number): void {
-    if (allowEdit) {
-      setCustomFieldIndex(index);
-      setCustomField(currentCustomField);
-      setActionType("edit");
-      setModalIsOpen(true);
-    }
+    setCustomFieldIndex(index);
+    setCustomField(currentCustomField);
+    setActionType("edit");
+    setModalIsOpen(true);
   }
 
   function handleDelete(index: number): void {
-    if (allowEdit) {
-      if (window.confirm(GetMessage("customFields_delete_confirm_message"))) {
-        dispatch(deleteCustomField(index, profileIndex));
-      }
+    if (window.confirm(GetMessage("customFields_delete_confirm_message"))) {
+      dispatch(deleteCustomField(index, profileIndex));
     }
   }
 
   function handleSort(sortedCustomFields: ICustomField[]): void {
-    if (allowEdit) {
-      dispatch(saveSortedCustomFields(sortedCustomFields, profileIndex));
-    }
+    dispatch(saveSortedCustomFields(sortedCustomFields, profileIndex));
   }
 
   function handleSave(formValues: ICustomFieldForm): void {
-    if (allowEdit) {
-      if (actionType === "edit") {
-        dispatch(saveCustomField(formValues, customFieldIndex, profileIndex));
-      } else {
-        dispatch(createCustomField(formValues, customFieldIndex, profileIndex));
-      }
-      closeModal();
+    if (actionType === "edit") {
+      dispatch(saveCustomField(formValues, customFieldIndex, profileIndex));
+    } else {
+      dispatch(createCustomField(formValues, customFieldIndex, profileIndex));
     }
+    closeModal();
   }
 
+  // Every edition can add unlimited fields, to the default list and to URL-specific profiles.
   return (
     <>
       <CustomFieldsList
         customFields={customFields}
-        allowAdd={allowAdd}
-        allowEdit={allowEdit}
+        allowAdd
+        allowEdit
         onAdd={newCustomField}
         onEdit={handleEdit}
         onDelete={handleDelete}

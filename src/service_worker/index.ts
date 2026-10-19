@@ -101,15 +101,14 @@ function handleMessage(
 if (chrome.runtime.onInstalled) {
   chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "update") {
-      try {
-        if (details.previousVersion && details.previousVersion.startsWith("3.2")) {
-          GetFakeFillerOptions().then((options) => {
+      // Service workers have no window, so a failed migration is logged rather than shown in an alert.
+      if (details.previousVersion && details.previousVersion.startsWith("3.2")) {
+        GetFakeFillerOptions()
+          .then((options) => {
             options.fieldMatchSettings.matchAriaLabelledBy = true;
-            SaveFakeFillerOptions(options);
-          });
-        }
-      } catch (ex) {
-        window.alert(GetMessage("bgPage_errorMigratingOptions", [(ex as Error).message]));
+            return SaveFakeFillerOptions(options);
+          })
+          .catch((ex) => console.error(GetMessage("bgPage_errorMigratingOptions", [(ex as Error).message])));
       }
     }
   });

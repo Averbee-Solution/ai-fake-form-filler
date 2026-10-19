@@ -56,6 +56,17 @@ export async function GetSyncStatus(): Promise<ISyncStatus> {
 
 // Uploads the options. Called whenever they are saved locally.
 export async function PushOptionsToSync(options: IFakeFillerOptions): Promise<void> {
+  const updatedAt = Date.now();
+
+  try {
+    // Stamp this browser's copy before uploading anything, and even while sync is off: the sync change event
+    // this upload fires then finds nothing newer to pull back over a later save, and edits made while sync was
+    // off still win over older synced options when sync is turned on again.
+    await storageSet(chrome.storage.local, { [LOCAL_UPDATED_AT_KEY]: updatedAt });
+  } catch {
+    // The upload below still compares by its own timestamp.
+  }
+
   if (!(await IsSyncEnabled())) {
     return;
   }
@@ -67,13 +78,13 @@ export async function PushOptionsToSync(options: IFakeFillerOptions): Promise<vo
     items[`${SYNC_CHUNK_PREFIX}${i}`] = json.substr(i * CHUNK_LENGTH, CHUNK_LENGTH);
   }
 
-  const meta: ISyncMeta = { updatedAt: Date.now(), chunks: chunkCount };
+  const meta: ISyncMeta = { updatedAt, chunks: chunkCount };
 
   try {
     // Chunks first, then the meta entry, so other browsers never assemble a half-written set.
     await storageSet(chrome.storage.sync, items);
     await storageSet(chrome.storage.sync, { [SYNC_META_KEY]: meta });
-    await storageSet(chrome.storage.local, { [LOCAL_UPDATED_AT_KEY]: meta.updatedAt, syncError: "" });
+    await storageSet(chrome.storage.local, { syncError: "" });
 
     const existing = await storageGet<Record<string, unknown>>(chrome.storage.sync, null);
     const staleKeys = Object.keys(existing).filter(

@@ -68,8 +68,10 @@ async function RequestAiFill(instruction: string, fields: IAiFieldDescriptor[]):
 
   const validRefs = new Set(fields.map((field) => field.ref));
   return {
-    fills: (result.fills || []).filter((fill) => validRefs.has(fill.ref) && typeof fill.value === "string"),
-    message: result.message || "",
+    fills: (Array.isArray(result.fills) ? result.fills : []).filter(
+      (fill) => fill && validRefs.has(fill.ref) && typeof fill.value === "string"
+    ),
+    message: typeof result.message === "string" ? result.message : "",
   };
 }
 
